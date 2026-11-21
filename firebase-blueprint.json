@@ -1,0 +1,86 @@
+{
+  "entities": {
+    "UserFirebaseProfile": {
+      "title": "UserFirebaseProfile",
+      "description": "Private Firebase profile linking Google Auth UID with FocusSense role and family ID.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Firebase Auth UID of the signed-in user" },
+        "displayName": { "type": "string", "description": "Display name" },
+        "role": { "type": "string", "enum": ["parent", "child", "unassigned"] },
+        "familyId": { "type": "string", "description": "Supabase family group ID" },
+        "supabaseUserId": { "type": "string", "description": "Linked Supabase user ID" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["userId", "displayName", "role", "familyId", "supabaseUserId", "createdAt", "updatedAt"]
+    },
+    "ScreenStreamSession": {
+      "title": "ScreenStreamSession",
+      "description": "Real-time child screen mirror session & latest compressed JPEG frame.",
+      "type": "object",
+      "properties": {
+        "childId": { "type": "string", "description": "Child Supabase user ID" },
+        "ownerUid": { "type": "string", "description": "Firebase UID of creator" },
+        "memberUids": { "type": "array", "description": "Authorized family Firebase UIDs (max 10)" },
+        "childName": { "type": "string", "description": "Child display name" },
+        "foregroundApp": { "type": "string", "description": "Active app name or package" },
+        "frameBase64": { "type": "string", "description": "Base64 compressed JPEG screen frame" },
+        "width": { "type": "integer", "description": "Frame width in pixels" },
+        "height": { "type": "integer", "description": "Frame height in pixels" },
+        "isStreaming": { "type": "boolean", "description": "Whether child screen capture is actively streaming" },
+        "watchRequested": { "type": "boolean", "description": "Whether parent has requested live watch" },
+        "requestedByUid": { "type": "string", "description": "Firebase UID of parent requesting watch" },
+        "fps": { "type": "number", "description": "Effective frame rate" },
+        "capturedAtMs": { "type": "integer", "description": "Client capture timestamp millis" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": [
+        "childId", "ownerUid", "memberUids", "childName", "foregroundApp",
+        "frameBase64", "width", "height", "isStreaming", "watchRequested",
+        "requestedByUid", "fps", "capturedAtMs", "createdAt", "updatedAt"
+      ]
+    },
+    "AppUsageStatRecord": {
+      "title": "AppUsageStatRecord",
+      "description": "Per-app daily foreground usage statistics for graphs & parental insights.",
+      "type": "object",
+      "properties": {
+        "subjectUserId": { "type": "string", "description": "Supabase user ID whose usage is tracked" },
+        "ownerUid": { "type": "string", "description": "Firebase UID of device owner" },
+        "memberUids": { "type": "array", "description": "Authorized Firebase UIDs (Child stats shared with family; Parent stats private)" },
+        "role": { "type": "string", "enum": ["parent", "child"] },
+        "dateKey": { "type": "string", "description": "YYYY-MM-DD local date key" },
+        "packageName": { "type": "string", "description": "Android package identifier" },
+        "appName": { "type": "string", "description": "Human readable app label" },
+        "category": { "type": "string", "description": "App category (Study, Social, Gaming, etc.)" },
+        "totalTimeMinutes": { "type": "integer", "description": "Total minutes used today" },
+        "foregroundTimeMs": { "type": "integer", "description": "Total milliseconds in foreground" },
+        "launchCount": { "type": "integer", "description": "App foreground launches count" },
+        "isBlocked": { "type": "boolean", "description": "Whether app is currently restricted" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": [
+        "subjectUserId", "ownerUid", "memberUids", "role", "dateKey",
+        "packageName", "appName", "category", "totalTimeMinutes",
+        "foregroundTimeMs", "launchCount", "isBlocked", "createdAt", "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserFirebaseProfile" },
+      "description": "Private user linkage between Google Auth UID and FocusSense family profile."
+    },
+    "/screen_streams/{childId}": {
+      "schema": { "$ref": "#/entities/ScreenStreamSession" },
+      "description": "Real-time child screen mirror feed and parent live watch signaling."
+    },
+    "/app_usage_stats/{statId}": {
+      "schema": { "$ref": "#/entities/AppUsageStatRecord" },
+      "description": "Daily app usage statistics for parent and child time-spent graphs."
+    }
+  }
+}

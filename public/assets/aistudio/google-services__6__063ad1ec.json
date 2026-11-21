@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "453720534482",
+    "project_id": "focussense-11122",
+    "storage_bucket": "focussense-11122.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:453720534482:android:af31a75ad60798a4bb6c0b",
+        "android_client_info": {
+          "package_name": "com.focussense.family"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "453720534482-2tjvjs3rk1pj9uillnd86oe53tch39rk.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.focussense.family",
+            "certificate_hash": "5f9de530ee52464cc32737b6b0f358d4207b55c3"
+          }
+        },
+        {
+          "client_id": "453720534482-seqi167oo7303ogqq6kf14vlb7ij644e.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCF3_6INbTF_Ld9c-Dgj-KItQ2quSmXJR8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "453720534482-seqi167oo7303ogqq6kf14vlb7ij644e.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

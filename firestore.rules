@@ -1,0 +1,185 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-\\.]+$');
+    }
+
+    function isValidMemberList(listVal) {
+      return listVal is list &&
+             listVal.size() >= 1 &&
+             listVal.size() <= 10 &&
+             listVal[0] is string;
+    }
+
+    function isAuthorizedMember(data) {
+      return data.ownerUid == request.auth.uid || request.auth.uid in data.memberUids;
+    }
+
+    function isValidUserProfile(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.displayName is string && data.displayName.size() <= 100 &&
+             data.role in ['parent', 'child', 'unassigned'] &&
+             data.familyId is string && data.familyId.size() <= 128 &&
+             data.supabaseUserId is string && data.supabaseUserId.size() <= 128;
+    }
+
+    function isValidScreenStream(data) {
+      return data.childId is string && data.childId.size() >= 1 && data.childId.size() <= 128 &&
+             data.ownerUid is string && data.ownerUid.size() >= 1 && data.ownerUid.size() <= 128 &&
+             isValidMemberList(data.memberUids) &&
+             data.ownerUid in data.memberUids &&
+             data.childName is string && data.childName.size() <= 100 &&
+             data.foregroundApp is string && data.foregroundApp.size() <= 200 &&
+             data.frameBase64 is string && data.frameBase64.size() <= 400000 &&
+             data.width is int && data.width >= 0 && data.width <= 2160 &&
+             data.height is int && data.height >= 0 && data.height <= 4096 &&
+             data.isStreaming is bool &&
+             data.watchRequested is bool &&
+             data.requestedByUid is string && data.requestedByUid.size() <= 128 &&
+             data.fps is number && data.fps >= 0 && data.fps <= 60 &&
+             data.capturedAtMs is int && data.capturedAtMs >= 0;
+    }
+
+    function isValidAppUsageStat(data) {
+      return data.subjectUserId is string && data.subjectUserId.size() >= 1 && data.subjectUserId.size() <= 128 &&
+             data.ownerUid is string && data.ownerUid.size() >= 1 && data.ownerUid.size() <= 128 &&
+             isValidMemberList(data.memberUids) &&
+             data.ownerUid in data.memberUids &&
+             data.role in ['parent', 'child'] &&
+             data.dateKey is string && data.dateKey.size() == 10 &&
+             data.packageName is string && data.packageName.size() >= 1 && data.packageName.size() <= 200 &&
+             data.appName is string && data.appName.size() >= 1 && data.appName.size() <= 128 &&
+             data.category is string && data.category.size() >= 1 && data.category.size() <= 64 &&
+             data.totalTimeMinutes is int && data.totalTimeMinutes >= 0 && data.totalTimeMinutes <= 1440 &&
+             data.foregroundTimeMs is int && data.foregroundTimeMs >= 0 && data.foregroundTimeMs <= 86400000 &&
+             data.launchCount is int && data.launchCount >= 0 && data.launchCount <= 50000 &&
+             data.isBlocked is bool;
+    }
+
+    match /users/{userId} {
+      allow get, list: if isSignedIn() && request.auth.uid == userId;
+
+      allow create: if isSignedIn() &&
+                       isValidId(userId) &&
+                       request.auth.uid == userId &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().keys().hasAll(['userId', 'displayName', 'role', 'familyId', 'supabaseUserId', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'displayName', 'role', 'familyId', 'supabaseUserId', 'createdAt', 'updatedAt']) &&
+                       incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                       isValidUserProfile(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(userId) &&
+                       request.auth.uid == userId &&
+                       isValidUserProfile(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'role', 'familyId', 'supabaseUserId', 'updatedAt']);
+
+      allow delete: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+    }
+
+    match /screen_streams/{childId} {
+      allow get: if isSignedIn() && isValidId(childId) && isAuthorizedMember(existing());
+
+      allow list: if isSignedIn() && isAuthorizedMember(resource.data);
+
+      allow create: if isSignedIn() &&
+                       isValidId(childId) &&
+                       incoming().childId == childId &&
+                       incoming().ownerUid == request.auth.uid &&
+                       (request.auth.uid in incoming().memberUids) &&
+                       incoming().keys().hasAll([
+                         'childId', 'ownerUid', 'memberUids', 'childName', 'foregroundApp',
+                         'frameBase64', 'width', 'height', 'isStreaming', 'watchRequested',
+                         'requestedByUid', 'fps', 'capturedAtMs', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'childId', 'ownerUid', 'memberUids', 'childName', 'foregroundApp',
+                         'frameBase64', 'width', 'height', 'isStreaming', 'watchRequested',
+                         'requestedByUid', 'fps', 'capturedAtMs', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                       isValidScreenStream(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(childId) &&
+                       isValidScreenStream(incoming()) &&
+                       isAuthorizedMember(existing()) &&
+                       incoming().childId == existing().childId &&
+                       incoming().ownerUid == existing().ownerUid &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time && (
+                         incoming().diff(existing()).affectedKeys().hasOnly(['watchRequested', 'requestedByUid', 'memberUids', 'updatedAt']) ||
+                         incoming().diff(existing()).affectedKeys().hasOnly(['childName', 'foregroundApp', 'frameBase64', 'width', 'height', 'isStreaming', 'fps', 'capturedAtMs', 'memberUids', 'updatedAt']) ||
+                         incoming().diff(existing()).affectedKeys().hasOnly(['childName', 'foregroundApp', 'frameBase64', 'width', 'height', 'isStreaming', 'watchRequested', 'requestedByUid', 'fps', 'capturedAtMs', 'memberUids', 'updatedAt'])
+                       );
+
+      allow delete: if isSignedIn() && isValidId(childId) && isAuthorizedMember(existing());
+    }
+
+    match /app_usage_stats/{statId} {
+      allow get: if isSignedIn() && isValidId(statId) && isAuthorizedMember(existing());
+
+      allow list: if isSignedIn() && isAuthorizedMember(resource.data);
+
+      allow create: if isSignedIn() &&
+                       isValidId(statId) &&
+                       incoming().ownerUid == request.auth.uid &&
+                       (request.auth.uid in incoming().memberUids) &&
+                       incoming().keys().hasAll([
+                         'subjectUserId', 'ownerUid', 'memberUids', 'role', 'dateKey',
+                         'packageName', 'appName', 'category', 'totalTimeMinutes',
+                         'foregroundTimeMs', 'launchCount', 'isBlocked', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'subjectUserId', 'ownerUid', 'memberUids', 'role', 'dateKey',
+                         'packageName', 'appName', 'category', 'totalTimeMinutes',
+                         'foregroundTimeMs', 'launchCount', 'isBlocked', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                       isValidAppUsageStat(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(statId) &&
+                       isValidAppUsageStat(incoming()) &&
+                       isAuthorizedMember(existing()) &&
+                       incoming().ownerUid == existing().ownerUid &&
+                       incoming().subjectUserId == existing().subjectUserId &&
+                       incoming().packageName == existing().packageName &&
+                       incoming().dateKey == existing().dateKey &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                       incoming().diff(existing()).affectedKeys().hasOnly([
+                         'appName', 'category', 'totalTimeMinutes', 'foregroundTimeMs',
+                         'launchCount', 'isBlocked', 'memberUids', 'role', 'updatedAt'
+                       ]);
+
+      allow delete: if isSignedIn() && isValidId(statId) && existing().ownerUid == request.auth.uid;
+    }
+  }
+}
